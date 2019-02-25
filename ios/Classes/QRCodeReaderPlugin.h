@@ -4,7 +4,9 @@
 #import <Flutter/Flutter.h>
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
+#import "BarcodeScannerViewControllerDelegate.h"
 
-@interface QRCodeReaderPlugin : NSObject<FlutterPlugin>
-
+@interface QRCodeReaderPlugin : NSObject<FlutterPlugin, BarcodeScannerViewControllerDelegate>
+@property (nonatomic, assign) UIViewController *hostViewController;
+@property(nonatomic, retain) FlutterResult result;
 @end

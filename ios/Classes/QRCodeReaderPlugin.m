@@ -1,4 +1,5 @@
 #import "QRCodeReaderPlugin.h"
+#import "BarcodeScannerViewController.h"
 
 static NSString *const CHANNEL_NAME = @"qrcode_reader";
 static FlutterMethodChannel *channel;
@@ -17,7 +18,6 @@ static FlutterMethodChannel *channel;
 @end
 
 @implementation QRCodeReaderPlugin {
-FlutterResult _result;
 UIViewController *_viewController;
 }
 
@@ -31,9 +31,8 @@ float portraitheight;
     FlutterMethodChannel* channel = [FlutterMethodChannel 
                                      methodChannelWithName:CHANNEL_NAME 
                                      binaryMessenger:[registrar messenger]];
-    UIViewController *viewController =
-    [UIApplication sharedApplication].delegate.window.rootViewController;
-    QRCodeReaderPlugin* instance = [[QRCodeReaderPlugin alloc] initWithViewController:viewController];
+    QRCodeReaderPlugin *instance = [QRCodeReaderPlugin new];
+    instance.hostViewController = [UIApplication sharedApplication].delegate.window.rootViewController;
     [registrar addMethodCallDelegate:instance channel:channel];
 }
 
@@ -42,16 +41,36 @@ float portraitheight;
     if ([@"getPlatformVersion" isEqualToString:call.method]) {
         result([@"iOS " stringByAppendingString:[[UIDevice currentDevice] systemVersion]]);
     } else if ([@"readQRCode" isEqualToString:call.method]) {
-        [self showQRCodeView:call];
-        _result = result;
+        self.result = result;
+        [self showBarcodeView];
     } else if ([@"stopReading" isEqualToString:call.method]) {
-        [self stopReading];
+        // todo [self stopReading];
         result(@"stopped");
     }else {
         result(FlutterMethodNotImplemented);
     }
 }
 
+- (void)showBarcodeView {
+    BarcodeScannerViewController *scannerViewController = [[BarcodeScannerViewController alloc] init];
+    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:scannerViewController];
+    scannerViewController.delegate = self;
+    [self.hostViewController presentViewController:navigationController animated:NO completion:nil];
+}
+
+- (void)barcodeScannerViewController:(BarcodeScannerViewController *)controller didScanBarcodeWithResult:(NSString *)result {
+    if (self.result) {
+        self.result(result);
+    }
+}
+
+- (void)barcodeScannerViewController:(BarcodeScannerViewController *)controller didFailWithErrorCode:(NSString *)errorCode {
+    if (self.result){
+        self.result([FlutterError errorWithCode:errorCode
+                                        message:nil
+                                        details:nil]);
+    }
+}
 
 - (instancetype)initWithViewController:(UIViewController *)viewController {
     self = [super init];
@@ -59,8 +78,8 @@ float portraitheight;
         _viewController = viewController;
         _viewController.view.backgroundColor = [UIColor clearColor];
         _viewController.view.opaque = NO;
-        [[ NSNotificationCenter defaultCenter]addObserver: self selector:@selector(rotate:)
-                                              name:UIDeviceOrientationDidChangeNotification object:nil];
+        /*[[ NSNotificationCenter defaultCenter]addObserver: self selector:@selector(rotate:)
+                                              name:UIDeviceOrientationDidChangeNotification object:nil];*/
     }
     return self;
 }
@@ -130,7 +149,7 @@ float portraitheight;
     [captureMetadataOutput setMetadataObjectsDelegate:self queue:dispatchQueue];
     [captureMetadataOutput setMetadataObjectTypes:[NSArray arrayWithObject:AVMetadataObjectTypeQRCode]];
     _videoPreviewLayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:_captureSession];
-    [_videoPreviewLayer setVideoGravity:AVLayerVideoGravityResizeAspectFill];
+    //[_videoPreviewLayer setVideoGravity:AVLayerVideoGravityResizeAspect];
     [_videoPreviewLayer setFrame:_viewPreview.layer.bounds];
     [_viewPreview.layer addSublayer:_videoPreviewLayer];
     [_captureSession startRunning];
@@ -151,18 +170,18 @@ float portraitheight;
 
 
 - (void) rotate:(NSNotification *) notification{
-    if([[UIDevice currentDevice] orientation] == 1){
-    height = portraitheight;
-    width = landscapeheight;
-    _buttonCancel.frame = CGRectMake(width/2-width/8, height-height/20, width/4, height/20);
+    if([[UIDevice currentDevice] orientation] == 1 || [[UIDevice currentDevice] orientation] == 5){
+        height = portraitheight;
+        width = landscapeheight;
+        _buttonCancel.frame = CGRectMake(width/2-width/8, height-height/20, width/4, height/20);
     }
     else {
-    height = landscapeheight;
-    width = portraitheight;
-    _buttonCancel.frame = CGRectMake(width/2-width/8, height-height/10, width/4, height/20);
+        height = landscapeheight;
+        width = portraitheight;
+        _buttonCancel.frame = CGRectMake(width/2-width/8, height-height/10, width/4, height/20);
     }
     _qrcodeview.frame = CGRectMake(0, 0, width, height) ;
-    _viewPreview = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, height+height/10) ];
+    _viewPreview = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, height) ];
     [_videoPreviewLayer setFrame:_viewPreview.layer.bounds];
     [_qrcodeViewController viewWillLayoutSubviews];
 }
